@@ -14,6 +14,10 @@ This repository is the public connector for the hosted service. The app itself r
 
 ## Connect
 
+**OAuth (Claude.ai, ChatGPT, Claude Desktop):** add `https://agentchef.net/mcp` as a custom connector. The client discovers Agent Chef's authorization server, you sign in once and click **Allow**. No key needed.
+
+**API key (Claude Code, Cursor, Codex, scripts):**
+
 1. Sign in at https://agentchef.net, create your household, and open **Settings → Agents**.
 2. Click **Add to Claude / Add to ChatGPT / Claude Code / Cursor**. You get an API key and exact steps for that agent.
 3. Tell your agent: **“Run Agent Chef.”** It calls `run_agent_chef`, receives the operating manual plus today's
@@ -32,7 +36,7 @@ Manual configuration for any MCP client:
 }
 ```
 
-Clients that can't set headers can use `https://agentchef.net/mcp?key=<your API key>`.
+Clients that can't set headers can use `https://agentchef.net/mcp?key=<your API key>`. OAuth discovery lives at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`.
 
 ### Running via stdio (Docker)
 
@@ -45,11 +49,12 @@ docker run -i -e AGENT_CHEF_API_KEY=ac_... agent-chef-mcp
 
 Without a key the server still answers `initialize` and `tools/list`, so you can inspect the tool catalogue before signing up.
 
-## Tools (32)
+## Tools (34)
 
 | Area | Tools |
 |---|---|
 | Run loop | `run_agent_chef`, `next_actions`, `get_instructions`, `record_schedule`, `dismiss_setup_checklist` |
+| Access | `get_connected_agents`, `revoke_connected_agent` |
 | Preferences | `get_recipe_preferences`, `update_recipe_preferences` |
 | Household | `get_members`, `upsert_member`, `remove_member` |
 | Pantry | `get_ingredients`, `update_ingredients` |
