@@ -47,7 +47,7 @@ docker build -t agent-chef-mcp .
 docker run -i -e AGENT_CHEF_API_KEY=ac_... agent-chef-mcp
 ```
 
-Without a key the server still answers `initialize` and `tools/list`, so you can inspect the tool catalogue before signing up.
+Without a key the wrapper connects with `?introspect=1`, which answers `initialize` and `tools/list` only, so directories and curious users can inspect the tool catalogue before signing up.
 
 ## Tools (34)
 
