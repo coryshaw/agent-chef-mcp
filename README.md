@@ -45,11 +45,11 @@ docker run -i -e AGENT_CHEF_API_KEY=ac_... agent-chef-mcp
 
 Without a key the server still answers `initialize` and `tools/list`, so you can inspect the tool catalogue before signing up.
 
-## Tools (31)
+## Tools (32)
 
 | Area | Tools |
 |---|---|
-| Run loop | `run_agent_chef`, `next_actions`, `get_instructions`, `record_schedule` |
+| Run loop | `run_agent_chef`, `next_actions`, `get_instructions`, `record_schedule`, `dismiss_setup_checklist` |
 | Preferences | `get_recipe_preferences`, `update_recipe_preferences` |
 | Household | `get_members`, `upsert_member`, `remove_member` |
 | Pantry | `get_ingredients`, `update_ingredients` |
