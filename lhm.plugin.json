@@ -4,7 +4,7 @@
   "cloudEndpoint": "https://agentchef.net/mcp",
   "description": "Family meal planning run by your own AI agent: it proposes the week's dinners, the household votes from personal links, top picks win, and the grocery list is built minus your pantry. Say \"Run Agent Chef.\"",
   "homepage": "https://agentchef.net",
-  "identifier": "agent-chef",
+  "identifier": "coryshaw-agent-chef-mcp",
   "name": "Agent Chef",
   "prompts": [
     {
