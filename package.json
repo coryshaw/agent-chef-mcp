@@ -1,0 +1,9 @@
+{
+  "name": "agent-chef-mcp",
+  "version": "0.3.0",
+  "description": "Family meal planning run by your own AI agent: weekly dinners, household votes, grocery list minus the pantry. Remote MCP server at https://agentchef.net/mcp.",
+  "homepage": "https://agentchef.net",
+  "repository": { "type": "git", "url": "https://github.com/coryshaw/agent-chef-mcp" },
+  "license": "MIT",
+  "private": true
+}
