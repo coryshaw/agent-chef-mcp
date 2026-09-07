@@ -1,0 +1,5600 @@
+{
+  "synced_at": "2026-09-07T16:49:39.666Z",
+  "server": {
+    "name": "agent-chef",
+    "version": "0.4.0"
+  },
+  "instructions": "# How to run Agent Chef\n\nYou are the household's agent. Agent Chef is the state machine; you are the hands. You never need to remember where the week stands: the server tells you.\n\nRUN LOOP. When the user says \"run agent chef\", call run_agent_chef (it returns this manual, today's checklist, and whether a recurring schedule exists) and follow it. The first time, also schedule yourself to run \"Run Agent Chef.\" twice a day (09:00 and 18:00 in the household's timezone) and confirm it with record_schedule, so the whole week runs end to end without anyone asking. Then:\n1. Call next_actions.\n2. Execute the returned actions in order. Each one names the tool, why it's due, and the arguments or message text to use. Where an argument is in <angle brackets>, you fill it in (e.g. write the 10 recipes).\n3. Call next_actions again. Repeat until it returns no actions, then stop and report a one-line summary.\n\nWHAT THE PHASES MEAN\n- new_cycle: it's past the household's plan day. Ask for ratings on last week's dinners if any are missing (don't wait for answers), then propose 10 recipes and send the ballot.\n- voting: people vote on their personal links until voting_closes_at (household setting: weekday + time; set_voting_deadline moves it). You may be asked to send one reminder to non-voters shortly before the deadline, or to add 2-3 options answering ballot feedback. When everyone has voted or the deadline passes, lock in the winners, announce them, and build the cart.\n- shopping: assemble_online_grocery_order gives you the list minus the pantry plus the household's shopping_preferences (brands, organic, substitutions): follow them when picking products. Fill the cart in the store's website, show the total, and STOP for explicit approval before checkout. Then record_grocery_order.\n- cooking / idle: nothing to do until the next plan day.\n\nWRITING RECIPES (propose_recipes / add_candidates): read get_recipe_preferences first. Source recipes from real pages: import_recipe(url) saves a recipe from a trusted site with its photo, ingredients and steps, then pass its recipe_id; aim for most of the ballot to come from real sources. search_recipes finds anything already in the library. PHOTOS ARE YOUR JOB: every candidate should have a real image_url (the source page's photo, or one you found by searching). The server checks each URL is a live image and rejects dead ones; a card without a photo means you skipped this. Use get_favorite_recipes (include 1-2), get_past_recipes (avoid repeats from the last ~4 weeks), get_past_votes (lean into what wins), get_ingredients (use what's on hand). Each recipe: title, one appetizing sentence, servings, complete ingredients with quantities, steps, tags, and a real image_url (see PHOTOS).\n\nMESSAGING: message_group sends SMS/email to members and personalises {vote_link} per person. Pass the kind the action specifies so the server can track what was sent. If the household prefers, you may post the same text into their own group chat instead; still call message_group so it's logged (it dry-runs if no provider is configured).\n\nRULES: never invent a vote or a rating; never check out without explicit approval in this conversation; keep messages short and friendly; if a tool errors, fix the input and retry once, then report.",
+  "tools": [
+    {
+      "name": "run_agent_chef",
+      "title": "Run Agent Chef",
+      "description": "The one call to make when the user says 'run agent chef' (or run the app / plan dinner / do the weekly thing). Returns the operating manual plus the checklist of tool calls that are due right now. Execute them in order, then call next_actions again until it returns no actions. Stop before any checkout.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "type": "string",
+            "description": "new_cycle | voting | shopping | cooking | idle | subscription_required"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "do": {
+                  "type": "string",
+                  "description": "Tool to call (or 'tell_owner')"
+                },
+                "why": {
+                  "type": "string"
+                },
+                "args": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "notes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "do",
+                "why"
+              ],
+              "additionalProperties": true
+            },
+            "description": "Ordered checklist of tool calls due now; empty means nothing to do"
+          },
+          "week": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  },
+                  "week_start": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "voting",
+                      "selected",
+                      "ordered",
+                      "done"
+                    ]
+                  },
+                  "voting_closes_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "created_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "week_start",
+                  "status"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_check": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "plan_day": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  },
+                  "vote_close_day": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  },
+                  "vote_close_time": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  },
+                  "reminder_hours_before": {
+                    "type": "number"
+                  },
+                  "timezone": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  }
+                },
+                "required": [
+                  "plan_day",
+                  "vote_close_day",
+                  "vote_close_time",
+                  "reminder_hours_before",
+                  "timezone"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voted": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/actions/items/properties/why"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "not_yet_voted": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/actions/items/properties/why"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hours_open": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "voting_closes_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "voting_closes_local": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cycle_start": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "billing": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "description": "trial | active | past_due | expired | canceled"
+                  },
+                  "trial_days_left": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "plan": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "state"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "how_to": {
+            "$ref": "#/properties/actions/items/properties/why"
+          },
+          "schedule": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "set",
+                  "missing"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "set_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "do_this": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "instructions": {
+            "$ref": "#/properties/actions/items/properties/why"
+          }
+        },
+        "required": [
+          "phase",
+          "actions",
+          "how_to",
+          "schedule",
+          "instructions"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "record_schedule",
+      "title": "Record the recurring schedule",
+      "description": "Call after creating (or changing) the recurring 'Run Agent Chef.' task in your own scheduler, with a one-line description, e.g. 'Claude scheduled task, daily 9:00 and 18:00 America/Los_Angeles'. Lets the app stop reminding you and shows the owner that the loop is automated.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 3
+          },
+          "cleared": {
+            "type": "boolean",
+            "description": "true if the schedule was removed"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "agent_schedule": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "dismiss_setup_checklist",
+      "title": "Hide the setup checklist",
+      "description": "Hides the 'Get set up' card on the household dashboard (e.g. when the owner says they don't need it). Pass show=true to bring it back.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "show": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "hidden"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_connected_agents",
+      "title": "List connected agents",
+      "description": "Agents connected to this household via OAuth sign-in (Claude, ChatGPT…), with when they connected and last used. API keys are separate.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "client_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/properties/items/items/properties/client_id"
+                },
+                "granted_at": {
+                  "$ref": "#/properties/items/items/properties/client_id"
+                },
+                "last_used_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tokens": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "client_id",
+                "name",
+                "granted_at",
+                "tokens"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "revoke_connected_agent",
+      "title": "Disconnect an agent",
+      "description": "Revoke an OAuth-connected agent's access (client_id from get_connected_agents). It must sign in again to reconnect.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "revoked": {
+            "type": "string",
+            "description": "client_id that was revoked"
+          }
+        },
+        "required": [
+          "revoked"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "next_actions",
+      "title": "What should happen now",
+      "description": "START HERE. Returns the current phase and an ordered checklist of tool calls that are due right now (propose, send ballot, remind non-voters, add options for feedback, lock in, shop), with why and the arguments/message text to use. Execute them, then call again until empty. Idempotent and time-aware; safe to call on a schedule.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "type": "string",
+            "description": "new_cycle | voting | shopping | cooking | idle | subscription_required"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "do": {
+                  "type": "string",
+                  "description": "Tool to call (or 'tell_owner')"
+                },
+                "why": {
+                  "type": "string"
+                },
+                "args": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "notes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "do",
+                "why"
+              ],
+              "additionalProperties": true
+            },
+            "description": "Ordered checklist of tool calls due now; empty means nothing to do"
+          },
+          "week": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  },
+                  "week_start": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "voting",
+                      "selected",
+                      "ordered",
+                      "done"
+                    ]
+                  },
+                  "voting_closes_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "created_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "week_start",
+                  "status"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_check": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "plan_day": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  },
+                  "vote_close_day": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  },
+                  "vote_close_time": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  },
+                  "reminder_hours_before": {
+                    "type": "number"
+                  },
+                  "timezone": {
+                    "$ref": "#/properties/actions/items/properties/why"
+                  }
+                },
+                "required": [
+                  "plan_day",
+                  "vote_close_day",
+                  "vote_close_time",
+                  "reminder_hours_before",
+                  "timezone"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voted": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/actions/items/properties/why"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "not_yet_voted": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/actions/items/properties/why"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hours_open": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "voting_closes_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "voting_closes_local": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cycle_start": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "billing": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "description": "trial | active | past_due | expired | canceled"
+                  },
+                  "trial_days_left": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "plan": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "state"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "phase",
+          "actions"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_instructions",
+      "title": "How to run Agent Chef",
+      "description": "The full operating manual for agents: the run loop, phases, how to write recipes, messaging and safety rules. Read once per session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instructions": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "instructions"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_recipe_preferences",
+      "title": "Get recipe preferences",
+      "description": "Household name, recipe preferences prompt (diet, allergies, dislikes, cuisines, time budget), shopping preferences prompt (brands, organic, store quirks) plus settings: plan_day, servings, grocery_store, recipes_per_week, votes_per_member.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "preferences": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shopping_preferences": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan_day": {
+            "$ref": "#/properties/name"
+          },
+          "timezone": {
+            "$ref": "#/properties/name"
+          },
+          "vote_close_day": {
+            "$ref": "#/properties/name"
+          },
+          "vote_close_time": {
+            "$ref": "#/properties/name"
+          },
+          "reminder_hours_before": {
+            "type": "number"
+          },
+          "servings": {
+            "$ref": "#/properties/reminder_hours_before"
+          },
+          "grocery_store": {
+            "$ref": "#/properties/name"
+          },
+          "recipes_per_week": {
+            "$ref": "#/properties/reminder_hours_before"
+          },
+          "votes_per_member": {
+            "$ref": "#/properties/reminder_hours_before"
+          }
+        },
+        "required": [
+          "name",
+          "plan_day",
+          "timezone",
+          "vote_close_day",
+          "vote_close_time",
+          "reminder_hours_before",
+          "servings",
+          "grocery_store",
+          "recipes_per_week",
+          "votes_per_member"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "update_recipe_preferences",
+      "title": "Update recipe preferences",
+      "description": "Update any subset of the preferences prompt and settings. Omitted fields are unchanged.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Household display name"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone, e.g. America/Los_Angeles"
+          },
+          "vote_close_day": {
+            "type": "string",
+            "description": "Weekday voting closes, e.g. wednesday"
+          },
+          "vote_close_time": {
+            "type": "string",
+            "description": "Local time voting closes, HH:MM 24h, e.g. 18:00"
+          },
+          "reminder_hours_before": {
+            "type": "integer",
+            "description": "Send non-voters one reminder this many hours before voting closes"
+          },
+          "preferences": {
+            "type": "string",
+            "description": "Free-form prompt describing what the household likes/avoids. Replaces existing text."
+          },
+          "shopping_preferences": {
+            "type": "string",
+            "description": "Free-form prompt for the grocery run: preferred brands, organic when possible, substitutions, store quirks. Replaces existing text."
+          },
+          "plan_day": {
+            "type": "string"
+          },
+          "servings": {
+            "type": "integer"
+          },
+          "grocery_store": {
+            "type": "string"
+          },
+          "recipes_per_week": {
+            "type": "integer"
+          },
+          "votes_per_member": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/properties/id"
+          },
+          "preferences": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shopping_preferences": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan_day": {
+            "$ref": "#/properties/id"
+          },
+          "servings": {
+            "type": "number"
+          },
+          "grocery_store": {
+            "$ref": "#/properties/id"
+          },
+          "recipes_per_week": {
+            "$ref": "#/properties/servings"
+          },
+          "votes_per_member": {
+            "$ref": "#/properties/servings"
+          },
+          "timezone": {
+            "$ref": "#/properties/id"
+          },
+          "vote_close_day": {
+            "$ref": "#/properties/id"
+          },
+          "vote_close_time": {
+            "$ref": "#/properties/id"
+          },
+          "reminder_hours_before": {
+            "$ref": "#/properties/servings"
+          },
+          "agent_schedule": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agent_schedule_set_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "plan_day",
+          "servings",
+          "grocery_store",
+          "recipes_per_week",
+          "votes_per_member",
+          "timezone",
+          "vote_close_day",
+          "vote_close_time",
+          "reminder_hours_before"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_members",
+      "title": "Get household members",
+      "description": "List household members with contact info and their personal vote links.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/properties/items/items/properties/id"
+                },
+                "phone": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "role": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "owner",
+                        "member"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "vote_link": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Personal voting page for this member"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "upsert_member",
+      "title": "Add or update a member",
+      "description": "Add a household member or update phone/email. Name is the key (case-insensitive).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "description": "E.164, e.g. +15551234567"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/properties/id"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "owner",
+                  "member"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vote_link": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Personal voting page for this member"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "remove_member",
+      "title": "Remove a member",
+      "description": "Remove a household member by name (their votes and ratings stay attached to past weeks). The owner can't be removed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/properties/items/items/properties/id"
+                },
+                "phone": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "role": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "owner",
+                        "member"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "vote_link": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Personal voting page for this member"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_ingredients",
+      "title": "Get ingredients on hand",
+      "description": "Pantry/fridge/spice inventory the household already has. Used to trim the shopping list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "updated_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "update_ingredients",
+      "title": "Update ingredients on hand",
+      "description": "Add/refresh items (upsert by name), remove items, or replace the whole inventory.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "add": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Plain ingredient name, e.g. 'chicken thighs'"
+                },
+                "quantity": {
+                  "type": "string",
+                  "description": "Free text, e.g. '2 lbs', '1 bunch'"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "remove": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names to remove (used up)"
+          },
+          "replace_all": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "updated_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_favorite_recipes",
+      "title": "Get favorite recipes",
+      "description": "Recipes marked as household favorites, with ratings. Good candidates to re-propose by recipe_id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "$ref": "#/properties/items/items/properties/id"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "servings": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ingredients": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "$ref": "#/properties/items/items/properties/id"
+                          },
+                          "quantity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Free text, e.g. '2 lbs'"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/items/items/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tags": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/items/items/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "is_favorite": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ratings": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "number",
+                            "description": "1-5"
+                          },
+                          "comment": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "member": {
+                            "$ref": "#/properties/items/items/properties/id"
+                          },
+                          "created_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "member"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "avg_rating": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "favorite_recipe",
+      "title": "Favorite a recipe",
+      "description": "Mark (or unmark) a recipe as a household favorite.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipe_id": {
+            "type": "string"
+          },
+          "favorite": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "recipe_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "$ref": "#/properties/id"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "servings": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ingredients": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "$ref": "#/properties/id"
+                    },
+                    "quantity": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Free text, e.g. '2 lbs'"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_favorite": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ratings": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rating": {
+                      "type": "number",
+                      "description": "1-5"
+                    },
+                    "comment": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "member": {
+                      "$ref": "#/properties/id"
+                    },
+                    "created_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "rating",
+                    "member"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "avg_rating": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_recipe",
+      "title": "Get a recipe",
+      "description": "Full details for one recipe: ingredients, steps, servings, source, tags, ratings, comments, how often it's been cooked, and a link to its page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipe_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipe_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "$ref": "#/properties/id"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "servings": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ingredients": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "$ref": "#/properties/id"
+                    },
+                    "quantity": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Free text, e.g. '2 lbs'"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_favorite": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ratings": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rating": {
+                      "type": "number",
+                      "description": "1-5"
+                    },
+                    "comment": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "member": {
+                      "$ref": "#/properties/id"
+                    },
+                    "created_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "rating",
+                    "member"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "avg_rating": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rating_count": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "times_cooked": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "last_cooked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "member": {
+                      "$ref": "#/properties/id"
+                    },
+                    "comment": {
+                      "$ref": "#/properties/id"
+                    },
+                    "week_start": {
+                      "$ref": "#/properties/id"
+                    }
+                  },
+                  "required": [
+                    "member",
+                    "comment",
+                    "week_start"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "on_ballot": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "url": {
+            "$ref": "#/properties/id"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "url"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "search_recipes",
+      "title": "Search the recipe library",
+      "description": "Every recipe the household has ever had proposed, with ratings and cook counts. Filter by text, favorites, or tag. Use recipe_id from here with propose_recipes to re-propose.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "favorites_only": {
+            "type": "boolean"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "$ref": "#/properties/items/items/properties/id"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "servings": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ingredients": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "$ref": "#/properties/items/items/properties/id"
+                          },
+                          "quantity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Free text, e.g. '2 lbs'"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/items/items/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tags": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/items/items/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "is_favorite": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ratings": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "number",
+                            "description": "1-5"
+                          },
+                          "comment": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "member": {
+                            "$ref": "#/properties/items/items/properties/id"
+                          },
+                          "created_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "member"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "avg_rating": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "rating_count": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "times_cooked": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "last_cooked": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "update_recipe",
+      "title": "Update a recipe",
+      "description": "Edit a stored recipe: fix an ingredient, add steps, change servings, tags, image or source. Only provided fields change.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipe_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "servings": {
+            "type": "integer"
+          },
+          "ingredients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Plain ingredient name, e.g. 'chicken thighs'"
+                },
+                "quantity": {
+                  "type": "string",
+                  "description": "Free text, e.g. '2 lbs', '1 bunch'"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "recipe_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "$ref": "#/properties/id"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "servings": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ingredients": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "$ref": "#/properties/id"
+                    },
+                    "quantity": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Free text, e.g. '2 lbs'"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_favorite": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "import_recipe",
+      "title": "Import a recipe from a URL",
+      "description": "Fetch a recipe page (most cooking sites) and save it to the library with its real photo, ingredients, and steps. Returns the recipe; pass its recipe_id to propose_recipes or add_candidates to put it on a ballot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "favorite": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Extra tags to add"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "$ref": "#/properties/id"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "servings": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ingredients": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "$ref": "#/properties/id"
+                    },
+                    "quantity": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Free text, e.g. '2 lbs'"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_favorite": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total_minutes": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "url": {
+            "$ref": "#/properties/id"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "url"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_past_recipes",
+      "title": "Get past recipes",
+      "description": "Every recipe selected for a past week, newest first, with week, status, and ratings/comments. Use to avoid repeats and learn what landed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 30
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "$ref": "#/properties/items/items/properties/id"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "servings": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ingredients": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "$ref": "#/properties/items/items/properties/id"
+                          },
+                          "quantity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Free text, e.g. '2 lbs'"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/items/items/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tags": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/items/items/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "is_favorite": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ratings": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "number",
+                            "description": "1-5"
+                          },
+                          "comment": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "member": {
+                            "$ref": "#/properties/items/items/properties/id"
+                          },
+                          "created_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "member"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "avg_rating": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "week_start": {
+                  "$ref": "#/properties/items/items/properties/id"
+                },
+                "week_status": {
+                  "$ref": "#/properties/items/items/properties/id"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "week_start",
+                "week_status"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_current_week",
+      "title": "Get current week",
+      "description": "Where the cycle stands: latest week + status (voting/selected/ordered/done), candidates with tallies, who has/hasn't voted, selected recipes, pending_feedback. Call this first.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "week_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "week_start": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "voting",
+                      "selected",
+                      "ordered",
+                      "done"
+                    ]
+                  },
+                  "voting_closes_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "created_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "week_start",
+                  "status"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidates": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/properties/week/anyOf/0/properties/id"
+                    },
+                    "title": {
+                      "$ref": "#/properties/week/anyOf/0/properties/id"
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "image_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "source_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "servings": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "ingredients": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "$ref": "#/properties/week/anyOf/0/properties/id"
+                              },
+                              "quantity": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "Free text, e.g. '2 lbs'"
+                              }
+                            },
+                            "required": [
+                              "name"
+                            ],
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "steps": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/properties/week/anyOf/0/properties/id"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "tags": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/properties/week/anyOf/0/properties/id"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "is_favorite": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "ratings": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "rating": {
+                                "type": "number",
+                                "description": "1-5"
+                              },
+                              "comment": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "member": {
+                                "$ref": "#/properties/week/anyOf/0/properties/id"
+                              },
+                              "created_at": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "rating",
+                              "member"
+                            ],
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "avg_rating": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "position": {
+                      "type": "number",
+                      "description": "1-based ballot number"
+                    },
+                    "selected": {
+                      "type": "boolean"
+                    },
+                    "vote_count": {
+                      "type": "number"
+                    },
+                    "voters": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/anyOf/0/properties/id"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "position",
+                    "selected",
+                    "vote_count",
+                    "voters"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/candidates/anyOf/0/items"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voted": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/week/anyOf/0/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "not_yet_voted": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/week/anyOf/0/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "members": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/week/anyOf/0/properties/id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ballot_feedback": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "open": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "$ref": "#/properties/week/anyOf/0/properties/id"
+                        },
+                        "member": {
+                          "$ref": "#/properties/week/anyOf/0/properties/id"
+                        },
+                        "member_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "recipe_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "recipe_title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "comment": {
+                          "$ref": "#/properties/week/anyOf/0/properties/id"
+                        },
+                        "addressed_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "member",
+                        "comment"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "addressed": {
+                    "$ref": "#/properties/candidates/anyOf/0/items/properties/vote_count"
+                  },
+                  "hint": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "open",
+                  "addressed"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending_feedback": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "recipe_id": {
+                  "$ref": "#/properties/week/anyOf/0/properties/id"
+                },
+                "title": {
+                  "$ref": "#/properties/week/anyOf/0/properties/id"
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "week_id": {
+                  "$ref": "#/properties/week/anyOf/0/properties/id"
+                },
+                "week_start": {
+                  "$ref": "#/properties/week/anyOf/0/properties/id"
+                }
+              },
+              "required": [
+                "recipe_id",
+                "title",
+                "week_id",
+                "week_start"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "pending_feedback"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "propose_recipes",
+      "title": "Propose this week's candidates",
+      "description": "Start a weekly cycle: store the candidate recipes (normally 10) and return numbered candidates, a ballot_text (with a {vote_link} placeholder for message_group), and each member's vote link. Re-calling for the same week_start replaces the candidates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "week_start": {
+            "type": "string",
+            "description": "YYYY-MM-DD, defaults to today"
+          },
+          "recipes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "recipe_id": {
+                  "type": "string",
+                  "description": "Reuse an existing recipe (e.g. a favorite) instead of providing details"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "One appetizing sentence, shown on the ballot"
+                },
+                "image_url": {
+                  "type": "string",
+                  "description": "A real, publicly reachable photo of the dish: the og:image of the recipe page you used, or one found via web/image search. The server verifies the URL is an image and drops it otherwise. Never invent URLs; prefer import_recipe, which captures the source photo."
+                },
+                "source_url": {
+                  "type": "string"
+                },
+                "servings": {
+                  "type": "integer"
+                },
+                "ingredients": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Plain ingredient name, e.g. 'chicken thighs'"
+                      },
+                      "quantity": {
+                        "type": "string",
+                        "description": "Free text, e.g. '2 lbs', '1 bunch'"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Complete list with quantities; drives the shopping list"
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "recipes"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "week_start": {
+                "type": "string",
+                "description": "YYYY-MM-DD"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "voting",
+                  "selected",
+                  "ordered",
+                  "done"
+                ]
+              },
+              "voting_closes_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "week_start",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "title": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "servings": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ingredients": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "$ref": "#/properties/week/properties/id"
+                          },
+                          "quantity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Free text, e.g. '2 lbs'"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tags": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "is_favorite": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ratings": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "number",
+                            "description": "1-5"
+                          },
+                          "comment": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "member": {
+                            "$ref": "#/properties/week/properties/id"
+                          },
+                          "created_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "member"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "avg_rating": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "position": {
+                  "type": "number",
+                  "description": "1-based ballot number"
+                },
+                "selected": {
+                  "type": "boolean"
+                },
+                "vote_count": {
+                  "type": "number"
+                },
+                "voters": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/week/properties/id"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "position",
+                "selected",
+                "vote_count",
+                "voters"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "ballot_text": {
+            "type": "string",
+            "description": "Message text with a {vote_link} placeholder"
+          },
+          "image_urls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/week/properties/id"
+            }
+          },
+          "vote_links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "url": {
+                  "$ref": "#/properties/week/properties/id"
+                }
+              },
+              "required": [
+                "name",
+                "url"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "week",
+          "candidates",
+          "ballot_text",
+          "image_urls",
+          "vote_links"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "add_candidates",
+      "title": "Add candidates to the ballot",
+      "description": "Append extra recipes to the current voting ballot (positions continue after the existing ones; votes are kept; 15 max). Use in response to ballot_feedback from get_current_week; open feedback is marked addressed. Follow up with message_group so voters know new options are up.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "recipe_id": {
+                  "type": "string",
+                  "description": "Reuse an existing recipe (e.g. a favorite) instead of providing details"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "One appetizing sentence, shown on the ballot"
+                },
+                "image_url": {
+                  "type": "string",
+                  "description": "A real, publicly reachable photo of the dish: the og:image of the recipe page you used, or one found via web/image search. The server verifies the URL is an image and drops it otherwise. Never invent URLs; prefer import_recipe, which captures the source photo."
+                },
+                "source_url": {
+                  "type": "string"
+                },
+                "servings": {
+                  "type": "integer"
+                },
+                "ingredients": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Plain ingredient name, e.g. 'chicken thighs'"
+                      },
+                      "quantity": {
+                        "type": "string",
+                        "description": "Free text, e.g. '2 lbs', '1 bunch'"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Complete list with quantities; drives the shopping list"
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "minItems": 1
+          },
+          "week_id": {
+            "type": "string"
+          },
+          "addresses_feedback": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "recipes"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "week_start": {
+                "type": "string",
+                "description": "YYYY-MM-DD"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "voting",
+                  "selected",
+                  "ordered",
+                  "done"
+                ]
+              },
+              "voting_closes_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "week_start",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "added": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "title": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "servings": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ingredients": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "$ref": "#/properties/week/properties/id"
+                          },
+                          "quantity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Free text, e.g. '2 lbs'"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tags": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "is_favorite": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ratings": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "number",
+                            "description": "1-5"
+                          },
+                          "comment": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "member": {
+                            "$ref": "#/properties/week/properties/id"
+                          },
+                          "created_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "member"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "avg_rating": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "position": {
+                  "type": "number",
+                  "description": "1-based ballot number"
+                },
+                "selected": {
+                  "type": "boolean"
+                },
+                "vote_count": {
+                  "type": "number"
+                },
+                "voters": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/week/properties/id"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "position",
+                "selected",
+                "vote_count",
+                "voters"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/added/items"
+            }
+          },
+          "feedback": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "member": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "member_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recipe_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recipe_title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "comment": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "addressed_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "member",
+                "comment"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "week",
+          "added",
+          "candidates",
+          "feedback"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "add_ballot_feedback",
+      "title": "Add ballot feedback",
+      "description": "Record a member's comment about the current ballot (optionally about one candidate), e.g. relayed from a text message. Members can also do this themselves on their vote page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "member_name": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "recipe_id": {
+            "type": "string"
+          },
+          "week_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "member_name",
+          "comment"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "member": {
+                  "$ref": "#/properties/items/items/properties/id"
+                },
+                "member_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recipe_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recipe_title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "comment": {
+                  "$ref": "#/properties/items/items/properties/id"
+                },
+                "addressed_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "member",
+                "comment"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "message_group",
+      "title": "Message the household",
+      "description": "Send SMS/MMS or email to household members. '{vote_link}' in the message becomes each member's personal voting link. Channel 'auto' texts members with a phone and emails the rest. Providers now: {\"sms\":\"dry-run\",\"email\":\"dry-run\"} (dry-run = logged only).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "sms",
+              "email",
+              "auto"
+            ],
+            "default": "auto"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "image_urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "member_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Limit to these members; default everyone"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ballot",
+              "reminder",
+              "winners",
+              "feedback_request",
+              "options_added",
+              "custom"
+            ],
+            "default": "custom",
+            "description": "What this message is; lets next_actions avoid repeats"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "providers": {
+            "type": "object",
+            "properties": {
+              "sms": {
+                "type": "string"
+              },
+              "email": {
+                "$ref": "#/properties/providers/properties/sms"
+              }
+            },
+            "required": [
+              "sms",
+              "email"
+            ],
+            "additionalProperties": true
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "member": {
+                  "$ref": "#/properties/providers/properties/sms"
+                },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "sms",
+                    "email",
+                    "none"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "sent",
+                    "dry-run",
+                    "skipped",
+                    "error"
+                  ]
+                },
+                "detail": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "member",
+                "channel",
+                "status"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "providers",
+          "results"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "add_vote",
+      "title": "Record a member's votes",
+      "description": "Record one member's votes for the current week (replaces their earlier votes). Accepts recipe_ids or ballot positions. Unknown member names are created.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "member_name": {
+            "type": "string"
+          },
+          "recipe_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Ballot numbers, 1-based"
+          },
+          "week_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "member_name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "member": {
+            "type": "string"
+          },
+          "votes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/member"
+            },
+            "description": "recipe_ids now held by this member"
+          },
+          "tally": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/member"
+                },
+                "position": {
+                  "type": "number"
+                },
+                "title": {
+                  "$ref": "#/properties/member"
+                },
+                "vote_count": {
+                  "$ref": "#/properties/tally/items/properties/position"
+                }
+              },
+              "required": [
+                "id",
+                "position",
+                "title",
+                "vote_count"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "voted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/member"
+            }
+          },
+          "not_yet_voted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/member"
+            }
+          }
+        },
+        "required": [
+          "member",
+          "votes",
+          "tally",
+          "voted",
+          "not_yet_voted"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_past_votes",
+      "title": "Get past votes",
+      "description": "Historical ballots: per week, every candidate with vote count, voters, and whether it was selected.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit_weeks": {
+            "type": "integer",
+            "default": 12
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "week": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "week_start": {
+                      "type": "string",
+                      "description": "YYYY-MM-DD"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "voting",
+                        "selected",
+                        "ordered",
+                        "done"
+                      ]
+                    },
+                    "voting_closes_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "week_start",
+                    "status"
+                  ],
+                  "additionalProperties": true
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/properties/items/items/properties/week/properties/id"
+                      },
+                      "title": {
+                        "$ref": "#/properties/items/items/properties/week/properties/id"
+                      },
+                      "tags": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/properties/items/items/properties/week/properties/id"
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "vote_count": {
+                        "type": "number"
+                      },
+                      "voters": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/properties/items/items/properties/week/properties/id"
+                        }
+                      },
+                      "selected": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "vote_count",
+                      "voters",
+                      "selected"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": [
+                "week",
+                "candidates"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "set_this_weeks_recipes",
+      "title": "Select this week's recipes",
+      "description": "Lock in the winners. With no recipe_ids, picks the top N (recipes_per_week) by votes, ties broken by ballot order. Moves the week to 'selected' and returns the shopping list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipe_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "week_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "week_start": {
+                "type": "string",
+                "description": "YYYY-MM-DD"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "voting",
+                  "selected",
+                  "ordered",
+                  "done"
+                ]
+              },
+              "voting_closes_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "week_start",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "selected": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "title": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "servings": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ingredients": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "$ref": "#/properties/week/properties/id"
+                          },
+                          "quantity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Free text, e.g. '2 lbs'"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tags": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "is_favorite": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ratings": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "number",
+                            "description": "1-5"
+                          },
+                          "comment": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "member": {
+                            "$ref": "#/properties/week/properties/id"
+                          },
+                          "created_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "member"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "avg_rating": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "position": {
+                  "type": "number",
+                  "description": "1-based ballot number"
+                },
+                "selected": {
+                  "type": "boolean"
+                },
+                "vote_count": {
+                  "type": "number"
+                },
+                "voters": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/week/properties/id"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "position",
+                "selected",
+                "vote_count",
+                "voters"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "shopping_list": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "$ref": "#/properties/week/properties/id"
+                    },
+                    "quantities": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    "for_recipes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "quantities",
+                    "for_recipes"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "skipped_on_hand": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "$ref": "#/properties/week/properties/id"
+                    },
+                    "matched_on_hand": {
+                      "$ref": "#/properties/week/properties/id"
+                    },
+                    "for_recipes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "matched_on_hand",
+                    "for_recipes"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "recipes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/properties/week/properties/id"
+                    },
+                    "title": {
+                      "$ref": "#/properties/week/properties/id"
+                    },
+                    "servings": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            },
+            "required": [
+              "items",
+              "skipped_on_hand",
+              "recipes"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "week",
+          "selected",
+          "shopping_list"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "reopen_voting",
+      "title": "Reopen voting",
+      "description": "Undo set_this_weeks_recipes: clears the winners and returns the week to 'voting'. Existing votes are kept. Use if winners were locked in too early.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "week_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "week_start": {
+                "type": "string",
+                "description": "YYYY-MM-DD"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "voting",
+                  "selected",
+                  "ordered",
+                  "done"
+                ]
+              },
+              "voting_closes_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "week_start",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "title": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "servings": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ingredients": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "$ref": "#/properties/week/properties/id"
+                          },
+                          "quantity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Free text, e.g. '2 lbs'"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tags": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/properties/week/properties/id"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "is_favorite": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ratings": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "number",
+                            "description": "1-5"
+                          },
+                          "comment": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "member": {
+                            "$ref": "#/properties/week/properties/id"
+                          },
+                          "created_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "member"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "avg_rating": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "position": {
+                  "type": "number",
+                  "description": "1-based ballot number"
+                },
+                "selected": {
+                  "type": "boolean"
+                },
+                "vote_count": {
+                  "type": "number"
+                },
+                "voters": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/week/properties/id"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "position",
+                "selected",
+                "vote_count",
+                "voters"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "week",
+          "candidates"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "set_voting_deadline",
+      "title": "Move the voting deadline",
+      "description": "One-off override of when the current ballot closes: an ISO timestamp, or extend_hours from the current deadline. Normally the deadline comes from the household schedule (vote_close_day/time); changing those via update_recipe_preferences re-syncs the current week.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "closes_at": {
+            "type": "string",
+            "description": "ISO 8601, e.g. 2026-09-09T18:00:00-07:00"
+          },
+          "extend_hours": {
+            "type": "number"
+          },
+          "week_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "week_start": {
+                "type": "string",
+                "description": "YYYY-MM-DD"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "voting",
+                  "selected",
+                  "ordered",
+                  "done"
+                ]
+              },
+              "voting_closes_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "week_start",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "closes_local": {
+            "$ref": "#/properties/week/properties/id"
+          }
+        },
+        "required": [
+          "week",
+          "closes_local"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "rate_recipe",
+      "title": "Rate a cooked recipe",
+      "description": "Record post-cook feedback (1-5 + comment) for a member. When every selected recipe of that week has feedback the week becomes 'done'.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipe_id": {
+            "type": "string"
+          },
+          "member_name": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipe_id",
+          "member_name",
+          "rating"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "recipe": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "$ref": "#/properties/recipe/properties/id"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "image_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "servings": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "ingredients": {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "$ref": "#/properties/recipe/properties/id"
+                        },
+                        "quantity": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Free text, e.g. '2 lbs'"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "steps": {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/properties/recipe/properties/id"
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "tags": {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/properties/recipe/properties/id"
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "is_favorite": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": true
+          },
+          "week": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/properties/recipe/properties/id"
+                  },
+                  "week_start": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "voting",
+                      "selected",
+                      "ordered",
+                      "done"
+                    ]
+                  },
+                  "voting_closes_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "created_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "week_start",
+                  "status"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending_feedback": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "recipe_id": {
+                  "$ref": "#/properties/recipe/properties/id"
+                },
+                "title": {
+                  "$ref": "#/properties/recipe/properties/id"
+                },
+                "image_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "week_id": {
+                  "$ref": "#/properties/recipe/properties/id"
+                },
+                "week_start": {
+                  "$ref": "#/properties/recipe/properties/id"
+                }
+              },
+              "required": [
+                "recipe_id",
+                "title",
+                "week_id",
+                "week_start"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "recipe",
+          "pending_feedback"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "assemble_online_grocery_order",
+      "title": "Assemble the grocery order",
+      "description": "Shopping list for the selected recipes minus ingredients on hand, grouped by item with quantities and which recipe needs it, plus the preferred store. Drive the browser to fill the cart; stop before checkout for approval; then call record_grocery_order.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "week_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "week_start": {
+                "type": "string",
+                "description": "YYYY-MM-DD"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "voting",
+                  "selected",
+                  "ordered",
+                  "done"
+                ]
+              },
+              "voting_closes_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "week_start",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "store": {
+            "$ref": "#/properties/week/properties/id"
+          },
+          "servings": {
+            "type": "number"
+          },
+          "shopping_preferences": {
+            "$ref": "#/properties/week/properties/id"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "quantities": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/week/properties/id"
+                  }
+                },
+                "for_recipes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/week/properties/id"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "quantities",
+                "for_recipes"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "skipped_on_hand": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "matched_on_hand": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "for_recipes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/week/properties/id"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "matched_on_hand",
+                "for_recipes"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "recipes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "title": {
+                  "$ref": "#/properties/week/properties/id"
+                },
+                "servings": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "instructions": {
+            "$ref": "#/properties/week/properties/id"
+          }
+        },
+        "required": [
+          "week",
+          "store",
+          "servings",
+          "shopping_preferences",
+          "items",
+          "skipped_on_hand",
+          "recipes",
+          "instructions"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "record_grocery_order",
+      "title": "Record a placed grocery order",
+      "description": "Log the placed order and (by default) add purchased items to ingredients on hand. Moves the week to 'ordered'.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Plain ingredient name, e.g. 'chicken thighs'"
+                },
+                "quantity": {
+                  "type": "string",
+                  "description": "Free text, e.g. '2 lbs', '1 bunch'"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "order_ref": {
+            "type": "string"
+          },
+          "total": {
+            "type": "number"
+          },
+          "store": {
+            "type": "string"
+          },
+          "add_to_on_hand": {
+            "type": "boolean",
+            "default": true
+          },
+          "week_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "week_start": {
+                "type": "string",
+                "description": "YYYY-MM-DD"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "voting",
+                  "selected",
+                  "ordered",
+                  "done"
+                ]
+              },
+              "voting_closes_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "week_start",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "order": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/week/properties/id"
+              },
+              "store": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "$ref": "#/properties/week/properties/id"
+                        },
+                        "quantity": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Free text, e.g. '2 lbs'"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "order_ref": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "total": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "week",
+          "order"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "name": "run_agent_chef",
+      "title": "Run Agent Chef",
+      "description": "Operate the household's meal loop: call next_actions and execute the checklist. Safe to run on a daily schedule."
+    },
+    {
+      "name": "weekly_cycle",
+      "title": "Run Agent Chef (alias)",
+      "description": "Same as run_agent_chef."
+    }
+  ]
+}

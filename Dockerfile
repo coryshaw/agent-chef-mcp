@@ -1,6 +1,9 @@
-# Thin stdio wrapper around the hosted Agent Chef MCP server (https://agentchef.net/mcp).
-# Set AGENT_CHEF_API_KEY to act on a household; without it only initialize/tools/list work.
+# Agent Chef MCP server (stdio). Builds and runs locally; tool calls execute on the hosted service for the
+# household identified by AGENT_CHEF_API_KEY. Without a key, initialize / tools/list / prompts/list still work.
 FROM node:22-alpine
-RUN npm install -g mcp-remote@latest
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install --omit=dev --no-audit --no-fund
+COPY server.js catalog.json ./
 ENV AGENT_CHEF_API_KEY=""
-ENTRYPOINT ["sh", "-c", "if [ -n \"$AGENT_CHEF_API_KEY\" ]; then exec mcp-remote https://agentchef.net/mcp --header \"Authorization:Bearer ${AGENT_CHEF_API_KEY}\"; else exec mcp-remote "https://agentchef.net/mcp?introspect=1"; fi"]
+CMD ["node", "server.js"]

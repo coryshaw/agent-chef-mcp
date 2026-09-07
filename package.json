@@ -1,9 +1,20 @@
 {
   "name": "agent-chef-mcp",
-  "version": "0.3.0",
-  "description": "Family meal planning run by your own AI agent: weekly dinners, household votes, grocery list minus the pantry. Remote MCP server at https://agentchef.net/mcp.",
+  "version": "1.0.0",
+  "description": "Family meal planning run by your own AI agent: weekly dinners, household votes, grocery list minus the pantry. Stdio MCP server for the hosted Agent Chef service (https://agentchef.net/mcp).",
   "homepage": "https://agentchef.net",
   "repository": { "type": "git", "url": "https://github.com/coryshaw/agent-chef-mcp" },
   "license": "MIT",
-  "private": true
+  "type": "module",
+  "bin": { "agent-chef-mcp": "server.js" },
+  "files": ["server.js", "catalog.json", "README.md", "LICENSE", "logo.png"],
+  "scripts": {
+    "start": "node server.js",
+    "sync": "node scripts/sync-catalog.mjs",
+    "test": "node scripts/test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  }
 }

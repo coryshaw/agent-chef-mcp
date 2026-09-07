@@ -38,16 +38,40 @@ Manual configuration for any MCP client:
 
 Clients that can't set headers can use `https://agentchef.net/mcp?key=<your API key>`. OAuth discovery lives at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`.
 
-### Running via stdio (Docker)
+### Running locally over stdio
 
-For clients that only speak stdio, this repo's Dockerfile wraps the remote endpoint with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
+For clients that only speak stdio (and for directories that build servers in a container), this repo is a small Node
+MCP server. It ships the full tool catalog, so `initialize`, `tools/list` and `prompts/list` work offline; tool calls run
+on the hosted service for the household identified by `AGENT_CHEF_API_KEY`.
+
+```bash
+npx -y github:coryshaw/agent-chef-mcp          # or: git clone … && npm install && npm start
+AGENT_CHEF_API_KEY=ac_... node server.js
+```
+
+Docker:
 
 ```bash
 docker build -t agent-chef-mcp .
 docker run -i -e AGENT_CHEF_API_KEY=ac_... agent-chef-mcp
 ```
 
-Without a key the wrapper connects with `?introspect=1`, which answers `initialize` and `tools/list` only, so directories and curious users can inspect the tool catalogue before signing up.
+Client config for stdio:
+
+```json
+{
+  "mcpServers": {
+    "agent-chef": {
+      "command": "npx",
+      "args": ["-y", "github:coryshaw/agent-chef-mcp"],
+      "env": { "AGENT_CHEF_API_KEY": "ac_..." }
+    }
+  }
+}
+```
+
+Without a key the server still lists everything; tool calls return a message explaining where to get a key.
+`npm run sync` refreshes `catalog.json` from the live server; `npm test` runs a stdio smoke test.
 
 ## Tools (34)
 
