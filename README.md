@@ -1,4 +1,4 @@
-<p align="center"><img src="logo.png" alt="Agent Chef" width="320"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/coryshaw/agent-chef-mcp/main/logo.png" alt="Agent Chef" width="320"></p>
 
 # Agent Chef MCP server
 
@@ -45,7 +45,7 @@ MCP server. It ships the full tool catalog, so `initialize`, `tools/list` and `p
 on the hosted service for the household identified by `AGENT_CHEF_API_KEY`.
 
 ```bash
-npx -y github:coryshaw/agent-chef-mcp          # or: git clone … && npm install && npm start
+npx -y agent-chef-mcp                          # or: git clone … && npm install && npm start
 AGENT_CHEF_API_KEY=ac_... node server.js
 ```
 
@@ -63,7 +63,7 @@ Client config for stdio:
   "mcpServers": {
     "agent-chef": {
       "command": "npx",
-      "args": ["-y", "github:coryshaw/agent-chef-mcp"],
+      "args": ["-y", "agent-chef-mcp"],
       "env": { "AGENT_CHEF_API_KEY": "ac_..." }
     }
   }

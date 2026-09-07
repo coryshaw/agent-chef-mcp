@@ -3,18 +3,51 @@
   "version": "1.0.0",
   "description": "Family meal planning run by your own AI agent: weekly dinners, household votes, grocery list minus the pantry. Stdio MCP server for the hosted Agent Chef service (https://agentchef.net/mcp).",
   "homepage": "https://agentchef.net",
-  "repository": { "type": "git", "url": "https://github.com/coryshaw/agent-chef-mcp" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coryshaw/agent-chef-mcp"
+  },
   "license": "MIT",
   "type": "module",
-  "bin": { "agent-chef-mcp": "server.js" },
-  "files": ["server.js", "catalog.json", "README.md", "LICENSE", "logo.png"],
+  "bin": {
+    "agent-chef-mcp": "server.js"
+  },
+  "files": [
+    "server.js",
+    "catalog.json",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node server.js",
     "sync": "node scripts/sync-catalog.mjs",
     "test": "node scripts/test.mjs"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "claude",
+    "chatgpt",
+    "cursor",
+    "codex",
+    "meal-planning",
+    "recipes",
+    "grocery-list",
+    "family",
+    "ai-agent"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/coryshaw/agent-chef-mcp/issues",
+    "email": "support@agentchef.net"
   }
 }
