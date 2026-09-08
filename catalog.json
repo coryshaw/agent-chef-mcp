@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-09-08T21:03:09.112Z",
+  "synced_at": "2026-09-08T22:25:57.554Z",
   "server": {
     "name": "agent-chef",
     "version": "0.4.0"
@@ -99,6 +99,13 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "share_url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Public page showing this week's winners"
                   }
                 },
                 "required": [
@@ -567,6 +574,13 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "share_url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Public page showing this week's winners"
                   }
                 },
                 "required": [
@@ -1741,7 +1755,7 @@
     {
       "name": "get_recipe",
       "title": "Get a recipe",
-      "description": "Full details for one recipe: ingredients, steps, servings, source, tags, ratings, comments, how often it's been cooked, and a link to its page.",
+      "description": "Full details for one recipe: ingredients, steps, servings, source, tags, ratings, comments, how often it's been cooked, a link to its page, and a public share_url anyone can open.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1964,6 +1978,13 @@
           },
           "url": {
             "$ref": "#/properties/id"
+          },
+          "share_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Public page for this recipe"
           }
         },
         "required": [
@@ -3139,6 +3160,13 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "share_url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Public page showing this week's winners"
                   }
                 },
                 "required": [
@@ -3636,6 +3664,13 @@
                   "string",
                   "null"
                 ]
+              },
+              "share_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Public page showing this week's winners"
               }
             },
             "required": [
@@ -3987,6 +4022,13 @@
                   "string",
                   "null"
                 ]
+              },
+              "share_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Public page showing this week's winners"
               }
             },
             "required": [
@@ -4343,7 +4385,7 @@
     {
       "name": "message_group",
       "title": "Message the household",
-      "description": "Send a push notification, SMS/MMS or email to household members. '{vote_link}' in the message becomes each member's personal voting link. Channel 'auto' texts members with a phone and emails the rest. Providers now: {\"sms\":\"dry-run\",\"email\":\"dry-run\",\"push\":\"web-push\"} (dry-run = logged only).",
+      "description": "Send a push notification, SMS/MMS or email to household members. '{vote_link}' in the message becomes each member's personal voting link. Channel 'auto' texts members with a phone and emails the rest. Providers now: {\"sms\":\"dry-run\",\"email\":\"resend\",\"push\":\"web-push\"} (dry-run = logged only).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4646,6 +4688,13 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "share_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Public page showing this week's winners"
                     }
                   },
                   "required": [
@@ -4779,6 +4828,13 @@
                   "string",
                   "null"
                 ]
+              },
+              "share_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Public page showing this week's winners"
               }
             },
             "required": [
@@ -5053,6 +5109,12 @@
               "recipes"
             ],
             "additionalProperties": true
+          },
+          "share_hint": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -5119,6 +5181,13 @@
                   "string",
                   "null"
                 ]
+              },
+              "share_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Public page showing this week's winners"
               }
             },
             "required": [
@@ -5374,6 +5443,13 @@
                   "string",
                   "null"
                 ]
+              },
+              "share_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Public page showing this week's winners"
               }
             },
             "required": [
@@ -5575,6 +5651,13 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "share_url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Public page showing this week's winners"
                   }
                 },
                 "required": [
@@ -5686,6 +5769,13 @@
                   "string",
                   "null"
                 ]
+              },
+              "share_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Public page showing this week's winners"
               }
             },
             "required": [
@@ -5893,6 +5983,13 @@
                   "string",
                   "null"
                 ]
+              },
+              "share_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Public page showing this week's winners"
               }
             },
             "required": [
