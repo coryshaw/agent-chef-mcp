@@ -1,10 +1,10 @@
 {
-  "synced_at": "2026-09-08T20:35:07.724Z",
+  "synced_at": "2026-09-08T20:47:29.159Z",
   "server": {
     "name": "agent-chef",
     "version": "0.4.0"
   },
-  "instructions": "# How to run Agent Chef\n\nYou are the household's agent. Agent Chef is the state machine; you are the hands. You never need to remember where the week stands: the server tells you.\n\nRUN LOOP. When the user says \"run agent chef\", call run_agent_chef (it returns this manual, today's checklist, and whether a recurring schedule exists) and follow it. The first time, also schedule yourself to run \"Run Agent Chef.\" twice a day (09:00 and 18:00 in the household's timezone) and confirm it with record_schedule, so the whole week runs end to end without anyone asking. Then:\n1. Call next_actions.\n2. Execute the returned actions in order. Each one names the tool, why it's due, and the arguments or message text to use. Where an argument is in <angle brackets>, you fill it in (e.g. write the 10 recipes).\n3. Call next_actions again. Repeat until it returns no actions, then stop and report a one-line summary.\n\nWHAT THE PHASES MEAN\n- new_cycle: it's past the household's plan day. Ask for ratings on last week's dinners if any are missing (don't wait for answers), then propose 10 recipes and send the ballot.\n- voting: people vote on their personal links until voting_closes_at (household setting: weekday + time; set_voting_deadline moves it). You may be asked to send one reminder to non-voters shortly before the deadline, or to add 2-3 options answering ballot feedback. When everyone has voted or the deadline passes, lock in the winners, announce them, and build the cart.\n- shopping: assemble_online_grocery_order gives you the list minus the pantry plus the household's shopping_preferences (brands, organic, substitutions): follow them when picking products. Fill the cart in the store's website, show the total, and STOP for explicit approval before checkout. Then record_grocery_order.\n- cooking / idle: nothing to do until the next plan day.\n\nWRITING RECIPES (propose_recipes / add_candidates): read get_recipe_preferences first. Source recipes from real pages: import_recipe(url) saves a recipe from a trusted site with its photo, ingredients and steps, then pass its recipe_id; aim for most of the ballot to come from real sources. search_recipes finds anything already in the library. PHOTOS ARE YOUR JOB: every candidate should have a real image_url (the source page's photo, or one you found by searching). The server checks each URL is a live image and rejects dead ones; a card without a photo means you skipped this. Use get_favorite_recipes (include 1-2), get_past_recipes (avoid repeats from the last ~4 weeks), get_past_votes (lean into what wins), get_ingredients (use what's on hand). Each recipe: title, one appetizing sentence, servings, complete ingredients with quantities, steps, tags, and a real image_url (see PHOTOS).\n\nMESSAGING: message_group sends SMS/email to members and personalises {vote_link} per person. Pass the kind the action specifies so the server can track what was sent. If the household prefers, you may post the same text into their own group chat instead; still call message_group so it's logged (it dry-runs if no provider is configured).\n\nSWITCHING FROM ANOTHER APP: when the owner lists meals they loved elsewhere (Mealime, a meal kit, a recipe manager), find a real recipe page for each name on a well-known recipe site, then save them all at once with import_recipes (favorite_all: true); URLs they give you go straight in. If you have a browser tool, you can collect the favorites yourself: open the old app, let the owner sign in (never type their password), gather the recipe links, then import. Mealime and HelloFresh recipe pages import cleanly; Blue Apron and Marley Spoon block automated fetching, so for those read each recipe card in your browser and save it with create_recipe (title, ingredients with quantities, steps, servings, photo URL, source link, favorite: true). Use create_recipe whenever import_recipe fails on a page you can read. Report what you saved and what you could not find. Favorites are re-proposed on future ballots.\n\nRULES: never invent a vote or a rating; never check out without explicit approval in this conversation; keep messages short and friendly; if a tool errors, fix the input and retry once, then report.",
+  "instructions": "# How to run Agent Chef\n\nYou are the household's agent. Agent Chef is the state machine; you are the hands. You never need to remember where the week stands: the server tells you.\n\nRUN LOOP. When the user says \"run agent chef\", call run_agent_chef (it returns this manual, today's checklist, and whether a recurring schedule exists) and follow it. The first time, also schedule yourself to run \"Run Agent Chef.\" twice a day (09:00 and 18:00 in the household's timezone) and confirm it with record_schedule, so the whole week runs end to end without anyone asking. Then:\n1. Call next_actions.\n2. Execute the returned actions in order. Each one names the tool, why it's due, and the arguments or message text to use. Where an argument is in <angle brackets>, you fill it in (e.g. write the 10 recipes).\n3. Call next_actions again. Repeat until it returns no actions, then stop and report a one-line summary.\n\nWHAT THE PHASES MEAN\n- new_cycle: it's past the household's plan day. Ask for ratings on last week's dinners if any are missing (don't wait for answers), then propose 10 recipes and send the ballot.\n- voting: people vote on their personal links until voting_closes_at (household setting: weekday + time; set_voting_deadline moves it). You may be asked to send one reminder to non-voters shortly before the deadline, or to add 2-3 options answering ballot feedback. When everyone has voted or the deadline passes, lock in the winners, announce them, and build the cart.\n- shopping: assemble_online_grocery_order gives you the list minus the pantry plus the household's shopping_preferences (brands, organic, substitutions): follow them when picking products. Fill the cart in the store's website, show the total, and STOP for explicit approval before checkout. Then record_grocery_order.\n- cooking / idle: nothing to do until the next plan day.\n\nWRITING RECIPES (propose_recipes / add_candidates): read get_recipe_preferences first. Source recipes from real pages: import_recipe(url) saves a recipe from a trusted site with its photo, ingredients and steps, then pass its recipe_id; aim for most of the ballot to come from real sources. search_recipes finds anything already in the library. PHOTOS ARE YOUR JOB: every candidate should have a real image_url (the source page's photo, or one you found by searching). The server checks each URL is a live image and rejects dead ones; a card without a photo means you skipped this. Use get_favorite_recipes (include 1-2), get_past_recipes (avoid repeats from the last ~4 weeks), get_past_votes (lean into what wins), get_ingredients (use what's on hand). Each recipe: title, one appetizing sentence, servings, complete ingredients with quantities, steps, tags, and a real image_url (see PHOTOS).\n\nMESSAGING: message_group sends push notifications (to members who tapped \"notify me\" on their vote page), SMS or email, and personalises {vote_link} per person; channel auto picks push first, then text, then email. Pass the kind the action specifies so the server can track what was sent. If the household prefers, you may post the same text into their own group chat instead; still call message_group so it's logged (it dry-runs if no provider is configured).\n\nSWITCHING FROM ANOTHER APP: when the owner lists meals they loved elsewhere (Mealime, a meal kit, a recipe manager), find a real recipe page for each name on a well-known recipe site, then save them all at once with import_recipes (favorite_all: true); URLs they give you go straight in. If you have a browser tool, you can collect the favorites yourself: open the old app, let the owner sign in (never type their password), gather the recipe links, then import. Mealime and HelloFresh recipe pages import cleanly; Blue Apron and Marley Spoon block automated fetching, so for those read each recipe card in your browser and save it with create_recipe (title, ingredients with quantities, steps, servings, photo URL, source link, favorite: true). Use create_recipe whenever import_recipe fails on a page you can read. Report what you saved and what you could not find. Favorites are re-proposed on future ballots.\n\nRULES: never invent a vote or a rating; never check out without explicit approval in this conversation; keep messages short and friendly; if a tool errors, fix the input and retry once, then report.",
   "tools": [
     {
       "name": "run_agent_chef",
@@ -964,7 +964,7 @@
     {
       "name": "get_members",
       "title": "Get household members",
-      "description": "List household members with contact info and their personal vote links.",
+      "description": "List household members with contact info, whether they get push notifications, and their personal vote links.",
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -1023,6 +1023,13 @@
                     "null"
                   ],
                   "description": "Personal voting page for this member"
+                },
+                "push_subscribed": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "Has a device opted in to push notifications"
                 }
               },
               "required": [
@@ -1113,6 +1120,13 @@
               "null"
             ],
             "description": "Personal voting page for this member"
+          },
+          "push_subscribed": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Has a device opted in to push notifications"
           }
         },
         "required": [
@@ -1194,6 +1208,13 @@
                     "null"
                   ],
                   "description": "Personal voting page for this member"
+                },
+                "push_subscribed": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "Has a device opted in to push notifications"
                 }
               },
               "required": [
@@ -4266,7 +4287,7 @@
     {
       "name": "message_group",
       "title": "Message the household",
-      "description": "Send SMS/MMS or email to household members. '{vote_link}' in the message becomes each member's personal voting link. Channel 'auto' texts members with a phone and emails the rest. Providers now: {\"sms\":\"dry-run\",\"email\":\"dry-run\"} (dry-run = logged only).",
+      "description": "Send a push notification, SMS/MMS or email to household members. '{vote_link}' in the message becomes each member's personal voting link. Channel 'auto' texts members with a phone and emails the rest. Providers now: {\"sms\":\"dry-run\",\"email\":\"dry-run\",\"push\":\"web-push\"} (dry-run = logged only).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4278,9 +4299,11 @@
             "enum": [
               "sms",
               "email",
+              "push",
               "auto"
             ],
-            "default": "auto"
+            "default": "auto",
+            "description": "auto = push to members who opted in on their vote page, else text if they have a phone, else email"
           },
           "subject": {
             "type": "string"
@@ -4337,6 +4360,12 @@
               },
               "email": {
                 "$ref": "#/properties/providers/properties/sms"
+              },
+              "push": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
@@ -4358,6 +4387,7 @@
                   "enum": [
                     "sms",
                     "email",
+                    "push",
                     "none"
                   ]
                 },
