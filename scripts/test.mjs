@@ -11,7 +11,7 @@ await client.connect(new StdioClientTransport({ command: process.execPath, args:
 
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exit(1); } console.log("ok  ", m); };
 const { tools } = await client.listTools();
-assert(tools.length >= 35, `${tools.length} tools listed`);
+assert(tools.length >= 36, `${tools.length} tools listed`);
 assert(tools.every((t) => t.annotations && t.outputSchema), "every tool has annotations and an outputSchema");
 const { prompts } = await client.listPrompts();
 assert(prompts.length === 2, "2 prompts listed");
