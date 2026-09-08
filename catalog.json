@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-09-08T22:25:57.554Z",
+  "synced_at": "2026-09-08T22:53:12.621Z",
   "server": {
     "name": "agent-chef",
     "version": "0.4.0"
@@ -1502,6 +1502,19 @@
                     "null"
                   ]
                 },
+                "is_public": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "public_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Indexable public page, when published"
+                },
                 "created_at": {
                   "type": [
                     "string",
@@ -1692,6 +1705,19 @@
               "null"
             ]
           },
+          "is_public": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Indexable public page, when published"
+          },
           "created_at": {
             "type": [
               "string",
@@ -1870,6 +1896,19 @@
               "boolean",
               "null"
             ]
+          },
+          "is_public": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Indexable public page, when published"
           },
           "created_at": {
             "type": [
@@ -2123,6 +2162,19 @@
                     "null"
                   ]
                 },
+                "is_public": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "public_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Indexable public page, when published"
+                },
                 "created_at": {
                   "type": [
                     "string",
@@ -2211,7 +2263,7 @@
     {
       "name": "update_recipe",
       "title": "Update a recipe",
-      "description": "Edit a stored recipe: fix an ingredient, add steps, change servings, tags, image or source. Only provided fields change.",
+      "description": "Edit a stored recipe: fix an ingredient, add steps, change servings, tags, image or source, or set public to publish it on agentchef.net/recipes. Only provided fields change.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2264,6 +2316,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "public": {
+            "type": "boolean",
+            "description": "Publish this recipe on agentchef.net/recipes (indexable, with the household's name). Imported recipes show ingredients and link to the source for steps."
           }
         },
         "required": [
@@ -2373,6 +2429,19 @@
               "boolean",
               "null"
             ]
+          },
+          "is_public": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Indexable public page, when published"
           },
           "created_at": {
             "type": [
@@ -2518,6 +2587,19 @@
               "boolean",
               "null"
             ]
+          },
+          "is_public": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Indexable public page, when published"
           },
           "created_at": {
             "type": [
@@ -2715,6 +2797,19 @@
               "boolean",
               "null"
             ]
+          },
+          "is_public": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Indexable public page, when published"
           },
           "created_at": {
             "type": [
@@ -3028,6 +3123,19 @@
                     "null"
                   ]
                 },
+                "is_public": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "public_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Indexable public page, when published"
+                },
                 "created_at": {
                   "type": [
                     "string",
@@ -3278,6 +3386,19 @@
                         "boolean",
                         "null"
                       ]
+                    },
+                    "is_public": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "public_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Indexable public page, when published"
                     },
                     "created_at": {
                       "type": [
@@ -3776,6 +3897,19 @@
                     "null"
                   ]
                 },
+                "is_public": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "public_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Indexable public page, when published"
+                },
                 "created_at": {
                   "type": [
                     "string",
@@ -4133,6 +4267,19 @@
                     "boolean",
                     "null"
                   ]
+                },
+                "is_public": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "public_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Indexable public page, when published"
                 },
                 "created_at": {
                   "type": [
@@ -4940,6 +5087,19 @@
                     "null"
                   ]
                 },
+                "is_public": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "public_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Indexable public page, when published"
+                },
                 "created_at": {
                   "type": [
                     "string",
@@ -5293,6 +5453,19 @@
                     "null"
                   ]
                 },
+                "is_public": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "public_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Indexable public page, when published"
+                },
                 "created_at": {
                   "type": [
                     "string",
@@ -5605,6 +5778,19 @@
                   "boolean",
                   "null"
                 ]
+              },
+              "is_public": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "public_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Indexable public page, when published"
               },
               "created_at": {
                 "type": [
