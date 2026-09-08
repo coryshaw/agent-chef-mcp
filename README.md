@@ -73,7 +73,7 @@ Client config for stdio:
 Without a key the server still lists everything; tool calls return a message explaining where to get a key.
 `npm run sync` refreshes `catalog.json` from the live server; `npm test` runs a stdio smoke test.
 
-## Tools (36)
+## Tools (37)
 
 | Area | Tools |
 |---|---|
@@ -82,7 +82,7 @@ Without a key the server still lists everything; tool calls return a message exp
 | Preferences | `get_recipe_preferences`, `update_recipe_preferences` |
 | Household | `get_members`, `upsert_member`, `remove_member` |
 | Pantry | `get_ingredients`, `update_ingredients` |
-| Recipes | `search_recipes`, `get_recipe`, `update_recipe`, `import_recipe`, `import_recipes`, `create_recipe`, `get_favorite_recipes`, `favorite_recipe`, `get_past_recipes` |
+| Recipes | `search_recipes`, `get_recipe`, `update_recipe`, `import_recipe`, `import_recipes`, `create_recipe`, `set_recipe_image`, `get_favorite_recipes`, `favorite_recipe`, `get_past_recipes` |
 | Weekly cycle | `propose_recipes`, `add_candidates`, `message_group`, `add_vote`, `add_ballot_feedback`, `get_past_votes`, `get_current_week`, `set_this_weeks_recipes`, `reopen_voting`, `set_voting_deadline`, `rate_recipe` |
 | Shopping | `assemble_online_grocery_order`, `record_grocery_order` |
 

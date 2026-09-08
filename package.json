@@ -1,6 +1,6 @@
 {
   "name": "agent-chef-mcp",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Family meal planning run by your own AI agent: weekly dinners, household votes, grocery list minus the pantry. Stdio MCP server for the hosted Agent Chef service (https://agentchef.net/mcp).",
   "homepage": "https://agentchef.net",
   "repository": {
