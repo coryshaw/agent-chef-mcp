@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-09-10T03:10:08.071Z",
+  "synced_at": "2026-09-10T03:13:44.979Z",
   "server": {
     "name": "agent-chef",
     "version": "0.4.0"
@@ -4975,6 +4975,55 @@
         },
         "required": [
           "items"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "send_feedback",
+      "title": "Send feedback to Agent Chef",
+      "description": "Pass the owner's feedback about Agent Chef itself (a bug, a missing feature, something confusing) to the people who build it. Use when the owner says something like 'tell Agent Chef that…' or complains about the tool. Not for messages to the household.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 2000
+          },
+          "contact": {
+            "type": "string",
+            "description": "How to reach the owner for a reply, if they want one"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "message"
         ],
         "additionalProperties": true,
         "$schema": "http://json-schema.org/draft-07/schema#"
