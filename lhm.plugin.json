@@ -206,7 +206,7 @@
     {
       "name": "get_members",
       "title": "Get household members",
-      "description": "List household members with contact info and their personal vote links.",
+      "description": "List household members with contact info, whether they have signed in to Agent Chef themselves (has_account), whether they get push notifications, and their personal vote links.",
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -217,20 +217,33 @@
     },
     {
       "name": "upsert_member",
-      "title": "Add or update a member",
-      "description": "Add a household member or update phone/email. Name is the key (case-insensitive).",
+      "title": "Add or edit a member",
+      "description": "Add a household member, or edit one: name is the key (case-insensitive), or pass member_id from get_members to rename. Phone and email update when given; an empty string clears them. Use this when someone wants to add or fix a member's contact details; never remove and re-add, which breaks their vote link. Roles: member (default) can vote, rate and browse once they sign in; admin can also change settings, recipes and weeks like the owner.",
       "inputSchema": {
         "type": "object",
         "properties": {
+          "member_id": {
+            "type": "string",
+            "description": "Edit this member by id (from get_members); this is how you rename someone. Without it, name is the match key."
+          },
           "name": {
             "type": "string"
           },
           "phone": {
             "type": "string",
-            "description": "E.164, e.g. +15551234567"
+            "description": "E.164, e.g. +15551234567. An empty string clears it."
           },
           "email": {
-            "type": "string"
+            "type": "string",
+            "description": "An empty string clears it."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "description": "Only for members who have signed in to Agent Chef (has_account); admin needs an account"
           }
         },
         "required": [
@@ -361,7 +374,7 @@
     {
       "name": "get_recipe",
       "title": "Get a recipe",
-      "description": "Full details for one recipe: ingredients, steps, servings, source, tags, ratings, comments, how often it's been cooked, and a link to its page.",
+      "description": "Full details for one recipe: ingredients, steps, servings, source, tags, ratings, comments, how often it's been cooked, a link to its page, and a public share_url anyone can open.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -394,6 +407,15 @@
           },
           "tag": {
             "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "ours",
+              "library",
+              "all"
+            ],
+            "description": "ours (default): this household's recipes. library: Community recipes, the shared pool of public recipes, with cooks/favorites/ratings across households. all: both."
           }
         },
         "additionalProperties": false,
@@ -404,9 +426,35 @@
       }
     },
     {
+      "name": "add_library_recipe",
+      "title": "Add a Community recipe",
+      "description": "Copy a recipe from Community recipes (search_recipes with scope 'library') into this household. Pass favorite: true to also mark it a favorite. Returns the household's copy; use its id on ballots. Passing a library id straight to propose_recipes or add_candidates does the same copy automatically.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipe_id": {
+            "type": "string",
+            "description": "Library recipe id from search_recipes"
+          },
+          "favorite": {
+            "type": "boolean",
+            "description": "Default false"
+          }
+        },
+        "required": [
+          "recipe_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "update_recipe",
       "title": "Update a recipe",
-      "description": "Edit a stored recipe: fix an ingredient, add steps, change servings, tags, image or source. Only provided fields change.",
+      "description": "Edit a stored recipe: fix an ingredient, add steps, change servings, tags, image or source, or set public to publish it on agentchef.net/recipes. Only provided fields change.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -459,6 +507,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "public": {
+            "type": "boolean",
+            "description": "Publish this recipe on agentchef.net/recipes (indexable, with the household's name). Imported recipes show ingredients and link to the source for steps."
           }
         },
         "required": [
@@ -495,6 +547,162 @@
         },
         "required": [
           "url"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "create_recipe",
+      "title": "Save a recipe you already have",
+      "description": "Save a recipe to the library from details you already have: one you read in your browser (when a site blocks import_recipe or has no recipe markup), one the owner dictated, or one you wrote. Provide the complete ingredient list with quantities and the steps; include the source page and a real photo URL when you have them. Optionally mark it a favorite.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2
+          },
+          "description": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "description": "A real, publicly reachable photo of the dish; verified by the server and dropped if dead"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "servings": {
+            "type": "integer"
+          },
+          "ingredients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Plain ingredient name, e.g. 'chicken thighs'"
+                },
+                "quantity": {
+                  "type": "string",
+                  "description": "Free text, e.g. '2 lbs', '1 bunch'"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "favorite": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "ingredients",
+          "steps"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "set_recipe_image",
+      "title": "Attach a photo to a recipe",
+      "description": "Store a photo for a recipe permanently and set it as the recipe's image. Use for images you generated with your image tool (their URLs expire) or any photo you have as a URL or base64. Pass either image_url (we fetch and copy it) or image_base64 + content_type. Max 6 MB; JPEG, PNG, WebP or GIF.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipe_id": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "image_base64": {
+            "type": "string",
+            "description": "Raw base64 (no data: prefix)"
+          },
+          "content_type": {
+            "type": "string",
+            "description": "e.g. image/png"
+          }
+        },
+        "required": [
+          "recipe_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "import_recipes",
+      "title": "Import several recipes from URLs",
+      "description": "Bulk version of import_recipe: fetch up to 15 recipe pages and save them to the library, optionally marking each as a favorite. Use when the owner is moving favorites from another app (Mealime, a meal kit, a recipe manager). Names without URLs are your job: search for a real recipe page first, then pass the URLs here. Per-URL failures are reported, not thrown.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "favorite": {
+                  "type": "boolean"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 15
+          },
+          "favorite_all": {
+            "type": "boolean",
+            "description": "Mark every imported recipe as a favorite"
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -569,7 +777,7 @@
                 },
                 "image_url": {
                   "type": "string",
-                  "description": "A real, publicly reachable photo of the dish: the og:image of the recipe page you used, or one found via web/image search. The server verifies the URL is an image and drops it otherwise. Never invent URLs; prefer import_recipe, which captures the source photo."
+                  "description": "A real, publicly reachable photo of the dish: the og:image of the recipe page you used, or one found via web/image search. The server verifies the URL is an image and drops it otherwise. Never invent URLs; prefer import_recipe, which captures the source photo. For generated images use set_recipe_image afterwards."
                 },
                 "source_url": {
                   "type": "string"
@@ -651,7 +859,7 @@
                 },
                 "image_url": {
                   "type": "string",
-                  "description": "A real, publicly reachable photo of the dish: the og:image of the recipe page you used, or one found via web/image search. The server verifies the URL is an image and drops it otherwise. Never invent URLs; prefer import_recipe, which captures the source photo."
+                  "description": "A real, publicly reachable photo of the dish: the og:image of the recipe page you used, or one found via web/image search. The server verifies the URL is an image and drops it otherwise. Never invent URLs; prefer import_recipe, which captures the source photo. For generated images use set_recipe_image afterwards."
                 },
                 "source_url": {
                   "type": "string"
@@ -747,9 +955,36 @@
       }
     },
     {
+      "name": "send_feedback",
+      "title": "Send feedback to Agent Chef",
+      "description": "Pass the owner's feedback about Agent Chef itself (a bug, a missing feature, something confusing) to the people who build it. Use when the owner says something like 'tell Agent Chef that…' or complains about the tool. Not for messages to the household.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 2000
+          },
+          "contact": {
+            "type": "string",
+            "description": "How to reach the owner for a reply, if they want one"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "message_group",
       "title": "Message the household",
-      "description": "Send SMS/MMS or email to household members. '{vote_link}' in the message becomes each member's personal voting link. Channel 'auto' texts members with a phone and emails the rest. Providers now: {\"sms\":\"dry-run\",\"email\":\"dry-run\"} (dry-run = logged only).",
+      "description": "Send a push notification, SMS/MMS or email to household members. '{vote_link}' in the message becomes each member's personal voting link. Channel 'auto' texts members with a phone and emails the rest. Providers now: {\"sms\":\"dry-run\",\"email\":\"resend\",\"push\":\"web-push\"} (dry-run = logged only).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -761,9 +996,11 @@
             "enum": [
               "sms",
               "email",
+              "push",
               "auto"
             ],
-            "default": "auto"
+            "default": "auto",
+            "description": "auto = push to members who opted in on their vote page, else text if they have a phone, else email"
           },
           "subject": {
             "type": "string"
@@ -931,7 +1168,7 @@
     {
       "name": "rate_recipe",
       "title": "Rate a cooked recipe",
-      "description": "Record post-cook feedback (1-5 + comment) for a member. When every selected recipe of that week has feedback the week becomes 'done'.",
+      "description": "Record post-cook feedback (1-5 + comment) for one member. Every member rates separately; a member's newer rating replaces their older one. Ratings never change the week's status.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1035,7 +1272,7 @@
       }
     }
   ],
-  "version": "1.0.1",
+  "version": "1.0.11",
   "tags": [
     "meal-planning",
     "recipes",

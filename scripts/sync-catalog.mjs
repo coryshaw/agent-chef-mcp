@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Refresh catalog.json from the live Agent Chef server. Run: node scripts/sync-catalog.mjs
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -30,3 +30,14 @@ const catalog = {
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "catalog.json");
 writeFileSync(out, JSON.stringify(catalog, null, 2) + "\n");
 console.log(`catalog.json: ${tools.length} tools, ${prompts.length} prompts, server ${init.serverInfo?.version}`);
+
+// LobeHub reads lhm.plugin.json, which carries its own copy of the tools and prompts. Keep it in step with the
+// catalog, or `lhm plugin update` pushes whatever was there last time (it sat at 34 tools for three weeks).
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const manifestPath = join(root, "lhm.plugin.json");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+manifest.tools = tools.map(({ name, title, description, inputSchema, execution }) => ({ name, title, description, inputSchema, execution }));
+manifest.prompts = prompts.map(({ name, title, description }) => ({ name, title, description }));
+manifest.version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
+writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+console.log(`lhm.plugin.json: ${manifest.tools.length} tools, ${manifest.prompts.length} prompts, version ${manifest.version}`);
