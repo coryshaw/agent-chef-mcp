@@ -5,7 +5,7 @@
   "homepage": "https://agentchef.net",
   "repository": {
     "type": "git",
-    "url": "https://github.com/coryshaw/agent-chef-mcp"
+    "url": "git+https://github.com/coryshaw/agent-chef-mcp.git"
   },
   "license": "MIT",
   "type": "module",
