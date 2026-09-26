@@ -1,0 +1,15 @@
+{
+  "name": "userkind",
+  "owner": {
+    "name": "User Kind",
+    "url": "https://agentchef.net"
+  },
+  "description": "Plugins from User Kind: Agent Chef, a family meal planner run by your own AI agent.",
+  "plugins": [
+    {
+      "name": "agent-chef",
+      "source": "./plugin",
+      "description": "Family meal planning run by your own AI agent: it proposes the week's dinners, the household votes from personal links, top picks win, and the grocery list writes itself."
+    }
+  ]
+}
