@@ -280,7 +280,7 @@
     {
       "name": "get_ingredients",
       "title": "Get ingredients on hand",
-      "description": "Pantry/fridge/spice inventory the household already has. Used to trim the shopping list.",
+      "description": "What the household already has, so the shopping list can skip it. Staples (staple: true) are always on hand unless marked out; leftovers carry expires_at and drop off on their own.",
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -292,7 +292,7 @@
     {
       "name": "update_ingredients",
       "title": "Update ingredients on hand",
-      "description": "Add/refresh items (upsert by name), remove items, or replace the whole inventory.",
+      "description": "Keep the pantry: add staples the household always has (omit days), add leftovers that should be skipped for a while and then drop off (days, 7 is typical), mark staples out when they run low so they go back on the shopping list, or remove items. Adding a staple that was out puts it back in stock. Don't add a week's groceries: they get cooked that week.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -308,6 +308,12 @@
                 "quantity": {
                   "type": "string",
                   "description": "Free text, e.g. '2 lbs', '1 bunch'"
+                },
+                "days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 60,
+                  "description": "Leftover: skip it on shopping lists for this many days, then drop it. Omit for a staple."
                 }
               },
               "required": [
@@ -321,7 +327,14 @@
             "items": {
               "type": "string"
             },
-            "description": "Names to remove (used up)"
+            "description": "Names to remove"
+          },
+          "out": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Staples the household ran out of; they return to stock when an order includes them"
           },
           "replace_all": {
             "type": "boolean"
@@ -1220,7 +1233,7 @@
     {
       "name": "record_grocery_order",
       "title": "Record a placed grocery order",
-      "description": "Log the placed order and (by default) add purchased items to ingredients on hand. Moves the week to 'ordered'.",
+      "description": "Log the placed order and move the week to 'ordered'. Staples marked out that were bought are back in stock (listed under restocked). Purchased items don't join the pantry since they get cooked this week; set add_to_on_hand to keep them as leftovers for 7 days.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1255,7 +1268,8 @@
           },
           "add_to_on_hand": {
             "type": "boolean",
-            "default": true
+            "default": false,
+            "description": "Keep the purchased items as 7-day leftovers"
           },
           "week_id": {
             "type": "string"
@@ -1272,7 +1286,7 @@
       }
     }
   ],
-  "version": "1.0.12",
+  "version": "1.0.13",
   "tags": [
     "meal-planning",
     "recipes",
