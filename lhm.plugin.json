@@ -1101,7 +1101,7 @@
     {
       "name": "set_this_weeks_recipes",
       "title": "Select this week's recipes",
-      "description": "Lock in the winners. With no recipe_ids, picks the top N (recipes_per_week) by votes, ties broken by ballot order. Moves the week to 'selected' and returns the shopping list.",
+      "description": "Lock in the dinners. With no recipe_ids, picks the top N (recipes_per_week) by votes; a tie at the cutoff goes to the earlier ballot position and is reported under tie_break. With recipe_ids, those become the dinners exactly: any number, any household or Community recipe, on the ballot or not (off-ballot picks are added to the week). Call again to change them; an ordered week stays ordered. Moves a voting week to 'selected' and returns the shopping list.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1272,7 +1272,7 @@
       }
     }
   ],
-  "version": "1.0.11",
+  "version": "1.0.12",
   "tags": [
     "meal-planning",
     "recipes",
