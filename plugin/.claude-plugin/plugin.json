@@ -3,9 +3,20 @@
   "displayName": "Agent Chef",
   "version": "1.0.0",
   "description": "Family meal planning run by your own AI agent. Proposes the week's dinners from what your household already cooks, runs the vote from personal links, locks in the winners and builds the grocery list minus what's in the pantry.",
-  "author": { "name": "User Kind", "url": "https://agentchef.net" },
+  "author": {
+    "name": "User Kind",
+    "url": "https://agentchef.net"
+  },
   "homepage": "https://agentchef.net",
+  "privacyPolicyUrl": "https://agentchef.net/privacy",
   "repository": "https://github.com/coryshaw/agent-chef-mcp",
   "license": "MIT",
-  "keywords": ["meal-planning", "recipes", "family", "groceries", "household", "dinner"]
+  "keywords": [
+    "meal-planning",
+    "recipes",
+    "family",
+    "groceries",
+    "household",
+    "dinner"
+  ]
 }
