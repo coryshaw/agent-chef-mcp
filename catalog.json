@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-09-27T20:23:38.701Z",
+  "synced_at": "2026-10-03T16:38:59.381Z",
   "server": {
     "name": "agent-chef",
     "version": "0.4.0"
@@ -327,7 +327,7 @@
       "annotations": {
         "title": "Record the recurring schedule",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -912,7 +912,7 @@
       "annotations": {
         "title": "Update recipe preferences",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -1132,7 +1132,7 @@
       "annotations": {
         "title": "Add or edit a member",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -1443,7 +1443,7 @@
       "annotations": {
         "title": "Update ingredients on hand",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -3339,8 +3339,8 @@
       "annotations": {
         "title": "Attach a photo to a recipe",
         "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": false
+        "destructiveHint": true,
+        "openWorldHint": true
       },
       "execution": {
         "taskSupport": "forbidden"
@@ -4263,7 +4263,7 @@
       "annotations": {
         "title": "Propose this week's candidates",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -5449,7 +5449,7 @@
       "annotations": {
         "title": "Record a member's votes",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -6549,7 +6549,7 @@
       "annotations": {
         "title": "Rate a cooked recipe",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
