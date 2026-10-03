@@ -1,5 +1,5 @@
 {
-  "synced_at": "2026-10-03T16:38:59.381Z",
+  "synced_at": "2026-10-03T16:40:55.905Z",
   "server": {
     "name": "agent-chef",
     "version": "0.4.0"
@@ -2763,8 +2763,8 @@
       "annotations": {
         "title": "Update a recipe",
         "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": false
+        "destructiveHint": true,
+        "openWorldHint": true
       },
       "execution": {
         "taskSupport": "forbidden"
@@ -3162,7 +3162,7 @@
         "title": "Save a recipe you already have",
         "readOnlyHint": false,
         "destructiveHint": false,
-        "openWorldHint": false
+        "openWorldHint": true
       },
       "execution": {
         "taskSupport": "forbidden"
@@ -4264,7 +4264,7 @@
         "title": "Propose this week's candidates",
         "readOnlyHint": false,
         "destructiveHint": true,
-        "openWorldHint": false
+        "openWorldHint": true
       },
       "execution": {
         "taskSupport": "forbidden"
@@ -4723,7 +4723,7 @@
         "title": "Add candidates to the ballot",
         "readOnlyHint": false,
         "destructiveHint": false,
-        "openWorldHint": false
+        "openWorldHint": true
       },
       "execution": {
         "taskSupport": "forbidden"
@@ -5249,7 +5249,7 @@
         "title": "Send feedback to Agent Chef",
         "readOnlyHint": false,
         "destructiveHint": false,
-        "openWorldHint": false
+        "openWorldHint": true
       },
       "execution": {
         "taskSupport": "forbidden"
@@ -5683,7 +5683,7 @@
       "annotations": {
         "title": "Select this week's recipes",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -6152,7 +6152,7 @@
       "annotations": {
         "title": "Reopen voting",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -6449,7 +6449,7 @@
       "annotations": {
         "title": "Move the voting deadline",
         "readOnlyHint": false,
-        "destructiveHint": false,
+        "destructiveHint": true,
         "openWorldHint": false
       },
       "execution": {
@@ -6789,8 +6789,8 @@
     },
     {
       "name": "assemble_online_grocery_order",
-      "title": "Assemble the grocery order",
-      "description": "Shopping list for the selected recipes minus ingredients on hand, grouped by item with quantities and which recipe needs it, plus the preferred store. Drive the browser to fill the cart; stop before checkout for approval; then call record_grocery_order.",
+      "title": "Get the shopping list for an online cart",
+      "description": "Returns the shopping list for filling an online grocery cart: everything this week's selected recipes need minus what is on hand, grouped by item with quantities and which recipe needs it, plus the preferred store. Drive the browser to fill the cart; stop before checkout for approval; then call record_grocery_order.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -6802,7 +6802,7 @@
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
       "annotations": {
-        "title": "Assemble the grocery order",
+        "title": "Get the shopping list for an online cart",
         "readOnlyHint": true,
         "destructiveHint": false,
         "openWorldHint": false
