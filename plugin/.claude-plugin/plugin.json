@@ -9,6 +9,9 @@
   },
   "homepage": "https://agentchef.net",
   "privacyPolicyUrl": "https://agentchef.net/privacy",
+  "termsOfServiceUrl": "https://agentchef.net/terms",
+  "supportUrl": "https://agentchef.net/support",
+  "documentationUrl": "https://agentchef.net/claude",
   "repository": "https://github.com/coryshaw/agent-chef-mcp",
   "license": "MIT",
   "keywords": [
